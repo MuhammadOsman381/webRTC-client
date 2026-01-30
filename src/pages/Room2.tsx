@@ -98,7 +98,7 @@ const Room2: React.FC = () => {
 
             // const pc = peerConnectionRef.current || createPeerConnection();
             // stream.getTracks().forEach(track => pc.addTrack(track, stream));
-            
+
         } catch (error) {
             console.error('Error accessing media devices.', error);
         }
@@ -274,27 +274,28 @@ const Room2: React.FC = () => {
 
 
     useEffect(() => {
-        const pc = createPeerConnection(); // create once
+    const pc = createPeerConnection(); // create once
 
-        const startStream = async () => {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-            setLocalStream(stream);
-            if (localVideoRef.current) localVideoRef.current.srcObject = stream;
+    const startStream = async () => {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        setLocalStream(stream);
+        if (localVideoRef.current) localVideoRef.current.srcObject = stream;
 
-            // ✅ Add tracks only once
-            stream.getTracks().forEach(track => pc.addTrack(track, stream));
-        };
+        // ✅ Add tracks only once
+        stream.getTracks().forEach(track => pc.addTrack(track, stream));
+    };
 
-        startStream();
-    }, []);
+    startStream();
+}, []);
 
 
 
-    // useEffect(() => {
-    //     localStream?.getTracks().forEach((track) => {
-    //         peerConnectionRef.current?.addTrack(track, localStream);
-    //     });
-    // }, [localStream]);
+
+    useEffect(() => {
+        localStream?.getTracks().forEach((track) => {
+            peerConnectionRef.current?.addTrack(track, localStream);
+        });
+    }, [localStream]);
 
     useEffect(() => {
         handleLocalUserStreamAndCall();
