@@ -6,7 +6,11 @@ import { MdCall, MdCallEnd } from 'react-icons/md';
 import { BsSend } from "react-icons/bs";
 import { FaVideo, FaVideoSlash } from 'react-icons/fa';
 import { HiMiniSpeakerWave, HiMiniSpeakerXMark } from 'react-icons/hi2';
-const socket = io('https://webrtc-backend-qckx.onrender.com');
+
+const socket = io('https://webrtc-backend-qckx.onrender.com', {
+    transports: ["polling", "websocket"],
+    secure: true,
+});
 
 const Room2: React.FC = () => {
     const { roomId, name } = useParams<{ roomId: string; name: string }>();
