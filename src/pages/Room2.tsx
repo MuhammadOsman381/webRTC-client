@@ -95,8 +95,10 @@ const Room2: React.FC = () => {
             if (localVideoRef.current) {
                 localVideoRef.current.srcObject = stream;
             }
-            const pc = peerConnectionRef.current || createPeerConnection();
-            stream.getTracks().forEach(track => pc.addTrack(track, stream));
+
+            // const pc = peerConnectionRef.current || createPeerConnection();
+            // stream.getTracks().forEach(track => pc.addTrack(track, stream));
+            
         } catch (error) {
             console.error('Error accessing media devices.', error);
         }
