@@ -269,11 +269,30 @@ const Room2: React.FC = () => {
         };
     }, [roomId, name]);
 
+
+
     useEffect(() => {
-        localStream?.getTracks().forEach((track) => {
-            peerConnectionRef.current?.addTrack(track, localStream);
-        });
-    }, [localStream]);
+        const pc = createPeerConnection(); // create once
+
+        const startStream = async () => {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            setLocalStream(stream);
+            if (localVideoRef.current) localVideoRef.current.srcObject = stream;
+
+            // ✅ Add tracks only once
+            stream.getTracks().forEach(track => pc.addTrack(track, stream));
+        };
+
+        startStream();
+    }, []);
+
+
+
+    // useEffect(() => {
+    //     localStream?.getTracks().forEach((track) => {
+    //         peerConnectionRef.current?.addTrack(track, localStream);
+    //     });
+    // }, [localStream]);
 
     useEffect(() => {
         handleLocalUserStreamAndCall();
@@ -294,6 +313,7 @@ const Room2: React.FC = () => {
                                             ref={remoteVideoRef}
                                             autoPlay
                                             playsInline
+                                            muted
                                             onClick={() => setIsRemoteVideoEnlarged(!isRemoteVideoEnlarged)}
                                             className="w-full h-full object-cover rounded-xl cursor-pointer"
                                         />
@@ -306,6 +326,7 @@ const Room2: React.FC = () => {
                                                 ref={localVideoRef}
                                                 autoPlay
                                                 playsInline
+                                                muted
                                                 className="w-full h-full object-cover"
                                             />
                                             <div className="absolute px-2 py-1 bg-zinc-800 bottom-1 left-1 rounded-md text-xs">
@@ -319,6 +340,7 @@ const Room2: React.FC = () => {
                                             ref={localVideoRef}
                                             autoPlay
                                             playsInline
+                                            muted
                                             className="w-full h-full object-cover rounded-xl"
                                         />
                                         <div className="absolute px-3 py-1 bg-zinc-800 bottom-2 left-2 rounded-md">
@@ -334,6 +356,7 @@ const Room2: React.FC = () => {
                                                     ref={remoteVideoRef}
                                                     autoPlay
                                                     playsInline
+                                                    muted
                                                     className="w-full h-full object-cover"
                                                 />
                                                 <div className="absolute px-2 py-1 bg-zinc-800 bottom-1 left-1 rounded-md text-xs">
