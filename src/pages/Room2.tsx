@@ -8,433 +8,257 @@ import { FaVideo, FaVideoSlash } from 'react-icons/fa';
 import { HiMiniSpeakerWave, HiMiniSpeakerXMark } from 'react-icons/hi2';
 
 const socket = io('https://webrtc-backend-qckx.onrender.com', {
-    transports: ["polling", "websocket"],
-    secure: true,
+  transports: ["polling", "websocket"],
+  secure: true,
 });
 
 const Room2: React.FC = () => {
-    const { roomId, name } = useParams<{ roomId: string; name: string }>();
-    const [localStream, setLocalStream] = useState<MediaStream | null>(null);
-    const [showRemoteStream, setShowRemoteStream] = useState(false);
-    const [remoteUserId, setRemoteUserId] = useState('');
-    const [remoteUserName, setRemoteUserName] = useState('');
-    const [remoteOffer, setRemoteOffer] = useState<RTCSessionDescriptionInit | null>(null);
-    const [fromOffer, setFromOffer] = useState('');
-    const [isInitiator, setIsInitiator] = useState(false);
-    const [isVideoOn, setIsVideoOn] = useState(true);
-    const [isAudioOn, setIsAudioOn] = useState(true);
-    const [message, setMessage] = useState('');
-    const [messages, setMessages] = useState<{ from: string; message: string }[]>([]);
-    const [isRemoteVideoEnlarged, setIsRemoteVideoEnlarged] = useState(false);
+  const { roomId, name } = useParams<{ roomId: string; name: string }>();
+  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+  const [showRemoteStream, setShowRemoteStream] = useState(false);
+  const [remoteUserId, setRemoteUserId] = useState('');
+  const [remoteUserName, setRemoteUserName] = useState('');
+  const [remoteOffer, setRemoteOffer] = useState<RTCSessionDescriptionInit | null>(null);
+  const [fromOffer, setFromOffer] = useState('');
+  const [isInitiator, setIsInitiator] = useState(false);
+  const [isVideoOn, setIsVideoOn] = useState(true);
+  const [isAudioOn, setIsAudioOn] = useState(true);
+  const [message, setMessage] = useState('');
+  const [messages, setMessages] = useState<{ from: string; message: string }[]>([]);
+//   const [isRemoteVideoEnlarged, setIsRemoteVideoEnlarged] = useState(false);
 
-    const localVideoRef = useRef<HTMLVideoElement | null>(null);
-    const remoteScreenShareRef = useRef<HTMLVideoElement | null>(null);
-    const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
-    const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
+  const localVideoRef = useRef<HTMLVideoElement | null>(null);
+  const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
+  const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
 
-    const createPeerConnection = () => {
-        const peer = new RTCPeerConnection({
-            iceServers: [
-                {
-                    urls: [
-                        'stun:stun.l.google.com:19302',
-                        'stun:global.stun.twilio.com:3478',
-                    ],
-                },
-            ],
-        });
+  // ✅ Create peer connection
+  const createPeerConnection = () => {
+    const peer = new RTCPeerConnection({
+      iceServers: [
+        { urls: ['stun:stun.l.google.com:19302', 'stun:global.stun.twilio.com:3478'] },
+      ],
+    });
 
-        peer.onicecandidate = (event) => {
-            if (event.candidate) {
-                socket.emit('ice-candidate', { candidate: event.candidate, to: remoteUserId });
-            }
-        };
-
-        peer.ontrack = (event) => {
-            if (remoteVideoRef.current) {
-                remoteVideoRef.current.srcObject = event.streams[0];
-            }
-        };
-
-        let isNegotiating = false;
-        peer.onnegotiationneeded = async () => {
-            if (isNegotiating) return;
-            isNegotiating = true;
-            try {
-                const offer = await peer.createOffer();
-                await peer.setLocalDescription(offer);
-                socket.emit('send-offer', {
-                    offer: peer.localDescription,
-                    to: remoteUserId,
-                    name: name,
-                });
-            } catch (err) {
-                console.error('Negotiation error:', err);
-            } finally {
-                isNegotiating = false;
-            }
-        };
-
-        peerConnectionRef.current = peer;
-        return peer;
+    peer.onicecandidate = (event) => {
+      if (event.candidate && remoteUserId) {
+        socket.emit('ice-candidate', { candidate: event.candidate, to: remoteUserId });
+      }
     };
 
-    const handleLocalUserStreamAndCall = async () => {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: true,
-                audio: true,
-            });
-            if (!stream) {
-                console.log(stream)
-                console.error('Stream is null');
-                return;
-            }
-            console.log(stream)
-            setLocalStream(stream);
-            if (localVideoRef.current) {
-                localVideoRef.current.srcObject = stream;
-            }
-        } catch (error) {
-            console.error('Error accessing media devices.', error);
-        }
-    };
-
-    const handleJoinRoom = ({ name, userId }: { name: string; userId: string }) => {
-        toast.success(`${name} is online`);
-        setRemoteUserId(userId);
-        setRemoteUserName(name);
-    };
-
-    const sendOffer = async () => {
-        const offer = await peerConnectionRef.current?.createOffer();
-        await peerConnectionRef.current?.setLocalDescription(offer);
-        socket.emit('send-offer', {
-            offer: peerConnectionRef.current?.localDescription,
-            to: remoteUserId,
-            name: name,
-        });
-    };
-
-    const handleOfferReceived = async ({
-        offer,
-        from,
-        name,
-    }: {
-        offer: RTCSessionDescriptionInit;
-        from: string;
-        name: string;
-    }) => {
-        toast.success(`${name} is calling!`);
-        setRemoteOffer(offer);
-        setFromOffer(from);
-        setIsInitiator(false);
-        setRemoteUserName(name);
-    };
-
-    const answerCaller = async () => {
+    peer.ontrack = (event) => {
+      if (remoteVideoRef.current) {
+        remoteVideoRef.current.srcObject = event.streams[0];
         setShowRemoteStream(true);
-        if (peerConnectionRef.current && remoteOffer !== null) {
-            await peerConnectionRef.current.setRemoteDescription(
-                new RTCSessionDescription(remoteOffer)
-            );
-            const answer = await peerConnectionRef.current.createAnswer();
-            await peerConnectionRef.current.setLocalDescription(answer);
-            socket.emit('send-answer', {
-                answer: peerConnectionRef.current.localDescription,
-                to: fromOffer,
-            });
-        }
+      }
     };
 
-    const handleReceivedAnswer = async ({ answer }: { answer: RTCSessionDescriptionInit }) => {
-        setShowRemoteStream(true);
-        const peer = peerConnectionRef.current;
-        await peer?.setRemoteDescription(new RTCSessionDescription(answer));
+    peerConnectionRef.current = peer;
+    return peer;
+  };
+
+  // ✅ Get local media stream and attach to local video
+  const initLocalStream = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      setLocalStream(stream);
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = stream;
+      }
+
+      // Add tracks to peer connection immediately
+      const pc = peerConnectionRef.current || createPeerConnection();
+      stream.getTracks().forEach(track => pc.addTrack(track, stream));
+    } catch (err) {
+      console.error("Error accessing local media devices:", err);
+      toast.error("Cannot access camera/mic. Make sure you allowed permissions.");
+    }
+  };
+
+  // ✅ Join room
+  const joinRoom = () => {
+    socket.emit('join-room', { roomId, name });
+  };
+
+  const handleUserJoined = ({ name, userId }: { name: string; userId: string }) => {
+    toast.success(`${name} is online`);
+    setRemoteUserId(userId);
+    setRemoteUserName(name);
+  };
+
+  // ✅ Handle offer received
+  const handleOfferReceived = async ({ offer, from, name }: any) => {
+    toast.success(`${name} is calling!`);
+    setRemoteOffer(offer);
+    setFromOffer(from);
+    setRemoteUserName(name);
+    setIsInitiator(false);
+  };
+
+  const answerCall = async () => {
+    if (!peerConnectionRef.current || !remoteOffer) return;
+
+    await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(remoteOffer));
+    const answer = await peerConnectionRef.current.createAnswer();
+    await peerConnectionRef.current.setLocalDescription(answer);
+    socket.emit('send-answer', { answer: peerConnectionRef.current.localDescription, to: fromOffer });
+    setShowRemoteStream(true);
+  };
+
+  const handleAnswerReceived = async ({ answer }: any) => {
+    if (!peerConnectionRef.current) return;
+    await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(answer));
+    setShowRemoteStream(true);
+  };
+
+  const endCall = () => {
+    if (localStream) {
+      localStream.getTracks().forEach(track => track.stop());
+    }
+    peerConnectionRef.current?.close();
+    peerConnectionRef.current = null;
+    if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
+    if (localVideoRef.current) localVideoRef.current.srcObject = null;
+    setShowRemoteStream(false);
+    socket.emit('end-call', { name, remoteUserId, isStreamExist: localStream ? true : false });
+  };
+
+  const handleEndCallReceiver = (name: string) => {
+    toast.error(`${name} ended the call`);
+    endCall();
+  };
+
+  const toggleVideo = () => {
+    if (!localStream) return;
+    const videoTrack = localStream.getVideoTracks()[0];
+    if (videoTrack) {
+      videoTrack.enabled = !videoTrack.enabled;
+      setIsVideoOn(videoTrack.enabled);
+    }
+  };
+
+  const toggleAudio = () => {
+    if (!localStream) return;
+    const audioTrack = localStream.getAudioTracks()[0];
+    if (audioTrack) {
+      audioTrack.enabled = !audioTrack.enabled;
+      setIsAudioOn(audioTrack.enabled);
+    }
+  };
+
+  // ✅ Messages
+  const handleMessageReceived = ({ message, from }: any) => {
+    setMessages(prev => [...prev, { from, message }]);
+  };
+
+  useEffect(() => {
+    peerConnectionRef.current = createPeerConnection();
+    initLocalStream();
+    joinRoom();
+
+    socket.on('user-joined', handleUserJoined);
+    socket.on('offer-received', handleOfferReceived);
+    socket.on('answer-received', handleAnswerReceived);
+    socket.on('end-call-reciever', handleEndCallReceiver);
+    socket.on('message-received', handleMessageReceived);
+    socket.on('ice-candidate', async ({ candidate }: any) => {
+      if (peerConnectionRef.current) {
+        await peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(candidate));
+      }
+    });
+
+    socket.on('show-call-button', () => setIsInitiator(true));
+    socket.on('show-answer-button', () => setIsInitiator(false));
+
+    return () => {
+      socket.off('user-joined', handleUserJoined);
+      socket.off('offer-received', handleOfferReceived);
+      socket.off('answer-received', handleAnswerReceived);
+      socket.off('end-call-reciever', handleEndCallReceiver);
+      socket.off('message-received', handleMessageReceived);
+      socket.off('ice-candidate');
+      socket.off('show-call-button');
+      socket.off('show-answer-button');
+      peerConnectionRef.current?.close();
     };
+  }, []);
 
-    const endCall = () => {
-        setShowRemoteStream(false);
-        if (localVideoRef.current?.srcObject) {
-            const tracks = (localVideoRef.current.srcObject as MediaStream).getTracks();
-            tracks.forEach((track) => track.stop());
-            localVideoRef.current.srcObject = null;
-        }
-        if (peerConnectionRef.current) {
-            peerConnectionRef.current.close();
-            peerConnectionRef.current = null;
-        }
-        if (remoteVideoRef.current) {
-            remoteVideoRef.current.srcObject = null;
-        }
-        socket.emit('end-call', {
-            name,
-            remoteUserId,
-            isStreamExist: localStream ? true : false,
-        });
-    };
+  return (
+    <div className="w-full flex items-center justify-center">
+      <div className="flex flex-col w-full lg:flex-row lg:w-[83vw] h-auto">
+        <div className="w-full lg:w-full flex flex-col p-5 justify-center items-center h-full gap-3">
+          <div className="w-full relative rounded-xl overflow-hidden bg-zinc-700">
+            {/* Local Video */}
+            <video ref={localVideoRef} autoPlay playsInline muted className="w-full h-full object-cover rounded-xl" />
 
-    const handleEndCallReciever = (name: string) => {
-        toast.error(`${name} ended the call`);
-        if (localVideoRef.current?.srcObject) {
-            const tracks = (localVideoRef.current.srcObject as MediaStream).getTracks();
-            tracks.forEach((track) => track.stop());
-            localVideoRef.current.srcObject = null;
-        }
-        if (peerConnectionRef.current) {
-            peerConnectionRef.current.close();
-            peerConnectionRef.current = null;
-        }
-        if (remoteVideoRef.current) {
-            remoteVideoRef.current.srcObject = null;
-        }
-        setShowRemoteStream(false);
-    };
-
-    const turnOnAndOffVideo = () => {
-        if (localVideoRef.current) {
-            const videoRef = localVideoRef.current.srcObject as MediaStream;
-            const videoTrack = videoRef.getVideoTracks()[0];
-            if (videoTrack) {
-                videoTrack.enabled = !videoTrack.enabled;
-                setIsVideoOn(videoTrack.enabled);
-            }
-        }
-    };
-
-    const turnOnAndOffAudio = () => {
-        if (localVideoRef.current) {
-            const videoRef = localVideoRef.current.srcObject as MediaStream;
-            const audioTrack = videoRef.getAudioTracks()[0];
-            if (audioTrack) {
-                audioTrack.enabled = !audioTrack.enabled;
-                setIsAudioOn(audioTrack.enabled);
-            }
-        }
-    };
-
-
-
-    const handleScreenShareStartedRemote = ({ name }: { name: string }) => {
-        const peer = peerConnectionRef.current;
-        if (!peer) return;
-        toast.success(`${name} started screen sharing`);
-        peer.ontrack = (event) => {
-            if (remoteScreenShareRef.current) {
-                remoteScreenShareRef.current.srcObject = event.streams[1];
-            }
-        };
-    };
-
-
-    const handleMessageReceived = ({ message, from }: { message: string; from: string }) => {
-        setMessages((prevMessages) => [...prevMessages, { from, message }]);
-    };
-
-    useEffect(() => {
-        socket.emit('join-room', { roomId, name });
-        socket.on('user-joined', handleJoinRoom);
-        socket.on('offer-received', handleOfferReceived);
-        socket.on('answer-received', handleReceivedAnswer);
-        socket.on('end-call-reciever', handleEndCallReciever);
-        socket.on('screen-share-started-remote', handleScreenShareStartedRemote);
-        socket.on('message-received', handleMessageReceived)
-        socket.on('show-call-button', () => {
-            setIsInitiator(true);
-        });
-        socket.on('show-answer-button', () => {
-            setIsInitiator(false);
-        });
-        socket.on('ice-candidate', async ({ candidate }: any) => {
-            if (peerConnectionRef.current) {
-                await peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(candidate));
-            }
-        });
-        return () => {
-            socket.off('user-joined', handleJoinRoom);
-            socket.off('offer-received', handleOfferReceived);
-            socket.off('answer-received', handleReceivedAnswer);
-            socket.off('show-call-button');
-            socket.off('show-answer-button');
-            socket.off('end-call-reciever', handleEndCallReciever);
-            socket.off('ice-candidate');
-            socket.off('screen-share-started-remote', handleScreenShareStartedRemote);
-            socket.off('message-received', handleMessageReceived)
-            if (localStream) {
-                localStream.getTracks().forEach((track) => track.stop());
-            }
-            peerConnectionRef.current?.close();
-        };
-    }, [roomId, name]);
-
-    useEffect(() => {
-        localStream?.getTracks().forEach((track) => {
-            peerConnectionRef.current?.addTrack(track, localStream);
-        });
-    }, [localStream]);
-
-    useEffect(() => {
-        handleLocalUserStreamAndCall();
-        createPeerConnection();
-    }, []);
-
-    return (
-        <div className=' w-full flex items-center justify-center' >
-            <div className='flex flex-col w-full  lg:flex-row  lg:w-[83vw]   h-auto'>
-
-                <div className='w-full  lg:w-full  flex flex-col   p-5 justify-center items-center h-full gap-3'>
-                    <div className='w-full   '>
-                        {localStream && (
-                            <div className="relative lg:w-[60vw] w-full  rounded-xl overflow-hidden bg-zinc-700">
-                                {isRemoteVideoEnlarged ? (
-                                    <>
-                                        <video
-                                            ref={remoteVideoRef}
-                                            autoPlay
-                                            playsInline
-                                            onClick={() => setIsRemoteVideoEnlarged(!isRemoteVideoEnlarged)}
-                                            className="w-full h-full object-cover rounded-xl cursor-pointer"
-                                        />
-                                        <div className="absolute px-3 py-1 bg-zinc-800 bottom-2 left-2 rounded-md">
-                                            <h2 className="font-bold text-md text-center">{remoteUserName}</h2>
-                                        </div>
-
-                                        <div className="absolute bottom-3 right-3 w-[220px] h-[150px] rounded-lg overflow-hidden ">
-                                            <video
-                                                ref={localVideoRef}
-                                                autoPlay
-                                                playsInline
-                                                className="w-full h-full object-cover"
-                                            />
-                                            <div className="absolute px-2 py-1 bg-zinc-800 bottom-1 left-1 rounded-md text-xs">
-                                                <h2 className="font-semibold text-center">{name}</h2>
-                                            </div>
-                                        </div>
-                                    </>
-                                ) : (
-                                    <>
-                                        <video
-                                            ref={localVideoRef}
-                                            autoPlay
-                                            playsInline
-                                            className="w-full h-full object-cover rounded-xl"
-                                        />
-                                        <div className="absolute px-3 py-1 bg-zinc-800 bottom-2 left-2 rounded-md">
-                                            <h2 className="font-bold text-md text-center">{name}</h2>
-                                        </div>
-
-                                        {showRemoteStream && (
-                                            <div
-                                                className="absolute bottom-3 right-3 w-[220px] h-[150px] rounded-lg overflow-hidden shadow-lg  cursor-pointer"
-                                                onClick={() => setIsRemoteVideoEnlarged(true)}
-                                            >
-                                                <video
-                                                    ref={remoteVideoRef}
-                                                    autoPlay
-                                                    playsInline
-                                                    className="w-full h-full object-cover"
-                                                />
-                                                <div className="absolute px-2 py-1 bg-zinc-800 bottom-1 left-1 rounded-md text-xs">
-                                                    <h2 className="font-semibold text-center">{remoteUserName}</h2>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </>
-                                )}
-                            </div>
-                        )}
-
-
-                    </div>
-
-                    <div className='flex items-center  justify-center bg-zinc-800 px-3 py-2 rounded-full h-auto gap-3 flex-wrap'>
-                        {!showRemoteStream ? (
-                            <>
-                                {isInitiator && !remoteOffer && (
-                                    <span onClick={sendOffer} className='bg-zinc-700 text-zinc-400 rounded-full p-2'>
-                                        <MdCall size='25' />
-                                    </span>
-                                )}
-                                {!isInitiator && remoteOffer && (
-                                    <span onClick={answerCaller} className='bg-zinc-700 text-zinc-400 rounded-full p-2'>
-                                        <MdCallEnd size='25' />
-                                    </span>
-                                )}
-                                <span onClick={turnOnAndOffVideo} className='bg-zinc-700 text-zinc-400 rounded-full p-2'>
-                                    {isVideoOn ? <FaVideoSlash size='25' /> : <FaVideo size='25' />}
-                                </span>
-                                <span onClick={turnOnAndOffAudio} className='bg-zinc-700 text-zinc-400 rounded-full p-2'>
-                                    {isAudioOn ? <HiMiniSpeakerXMark size='25' /> : <HiMiniSpeakerWave size='25' />}
-                                </span>
-                            </>
-                        ) : (
-                            <div className='flex items-center justify-center rounded-full h-auto gap-3 flex-wrap'>
-                                <span className='bg-zinc-700 text-zinc-400 rounded-full p-2'>
-                                    <MdCallEnd onClick={endCall} size='25' />
-                                </span>
-                                <span onClick={turnOnAndOffVideo} className='bg-zinc-700 text-zinc-400 rounded-full p-2'>
-                                    {isVideoOn ? <FaVideoSlash size='25' /> : <FaVideo size='25' />}
-                                </span>
-                                <span onClick={turnOnAndOffAudio} className='bg-zinc-700 text-zinc-400 rounded-full p-2'>
-                                    {isAudioOn ? <HiMiniSpeakerXMark size='25' /> : <HiMiniSpeakerWave size='25' />}
-                                </span>
-                            </div>
-                        )}
-                    </div>
+            {/* Remote Video */}
+            {showRemoteStream && (
+              <div className="absolute bottom-3 right-3 w-[220px] h-[150px] rounded-lg overflow-hidden shadow-lg cursor-pointer">
+                <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover" />
+                <div className="absolute px-2 py-1 bg-zinc-800 bottom-1 left-1 rounded-md text-xs">
+                  <h2 className="font-semibold text-center">{remoteUserName}</h2>
                 </div>
+              </div>
+            )}
+          </div>
 
-                <div className='  lg:w-full   w-full p-5    space-y-2'>
-                    <div className='bg-zinc-800   rounded-xl h-[79vh] overflow-auto'>
-                        <div className="p-4">
-
-                            {
-                                messages.length == 0 && <div className='text-center w-full flex items-center justify-center  h-[70vh] '>
-                                    <span>
-                                        Chatting is not started yet
-                                    </span>
-                                </div>
-                            }
-
-                            {messages.map((msg, index) => (
-                                msg.from === name ? (
-                                    <div key={index} className="chat chat-end">
-                                        <div className="chat-header">{msg.from}</div>
-                                        <div className="chat-bubble">{msg.message}</div>
-                                    </div>
-                                ) : (
-                                    <div key={index} className="chat chat-start">
-                                        <div className="chat-image avatar"></div>
-                                        <div className="chat-header">{msg.from}</div>
-                                        <div className="chat-bubble">{msg.message}</div>
-                                    </div>
-                                )
-                            ))}
-                        </div>
-                    </div>
-                    <div className='bg-zinc-800 h-auto w-full space-x-2 rounded-xl p-3 flex items-center justify-center'>
-                        <input
-                            onChange={(e) => setMessage(e.target.value)}
-                            value={message}
-                            type="text"
-                            className='input input-sm w-full outline-none focus-none'
-                        />
-                        <span
-                            onClick={() => {
-                                if (message.trim() !== '') {
-                                    socket.emit('send-message', { message, room: roomId, from: name });
-                                    setMessage('');
-                                }
-                            }}
-                            className='bg-zinc-700 p-2.5 rounded-full flex items-center justify-center'
-                        >
-                            <BsSend />
-                        </span>
-                    </div>
-                </div>
-            </div>
-
+          {/* Controls */}
+          <div className="flex items-center justify-center bg-zinc-800 px-3 py-2 rounded-full h-auto gap-3 flex-wrap">
+            {!showRemoteStream ? (
+              <>
+                {isInitiator && <MdCall size={25} onClick={() => peerConnectionRef.current?.createOffer()} />}
+                {!isInitiator && remoteOffer && <MdCallEnd size={25} onClick={answerCall} />}
+              </>
+            ) : (
+              <>
+                <MdCallEnd size={25} onClick={endCall} />
+              </>
+            )}
+            <span onClick={toggleVideo}>{isVideoOn ? <FaVideoSlash size={25} /> : <FaVideo size={25} />}</span>
+            <span onClick={toggleAudio}>{isAudioOn ? <HiMiniSpeakerXMark size={25} /> : <HiMiniSpeakerWave size={25} />}</span>
+          </div>
         </div>
-    );
+
+        {/* Chat */}
+        <div className="lg:w-full w-full p-5 space-y-2">
+          <div className="bg-zinc-800 rounded-xl h-[79vh] overflow-auto">
+            <div className="p-4">
+              {messages.length === 0 ? (
+                <div className="text-center w-full flex items-center justify-center h-[70vh]">
+                  Chatting is not started yet
+                </div>
+              ) : (
+                messages.map((msg, index) => (
+                  <div key={index} className={`chat ${msg.from === name ? 'chat-end' : 'chat-start'}`}>
+                    <div className="chat-header">{msg.from}</div>
+                    <div className="chat-bubble">{msg.message}</div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+          <div className="bg-zinc-800 h-auto w-full space-x-2 rounded-xl p-3 flex items-center justify-center">
+            <input
+              type="text"
+              value={message}
+              onChange={e => setMessage(e.target.value)}
+              className="input input-sm w-full outline-none focus-none"
+            />
+            <span
+              onClick={() => {
+                if (message.trim() !== '') {
+                  socket.emit('send-message', { message, room: roomId, from: name });
+                  setMessage('');
+                }
+              }}
+              className="bg-zinc-700 p-2.5 rounded-full flex items-center justify-center"
+            >
+              <BsSend />
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 export default Room2;
