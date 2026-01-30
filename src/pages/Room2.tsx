@@ -81,6 +81,12 @@ const Room2: React.FC = () => {
                 video: true,
                 audio: true,
             });
+            if (!stream) {
+                console.log(stream)
+                console.error('Stream is null');
+                return;
+            }
+            console.log(stream)
             setLocalStream(stream);
             if (localVideoRef.current) {
                 localVideoRef.current.srcObject = stream;
@@ -203,7 +209,7 @@ const Room2: React.FC = () => {
         }
     };
 
-  
+
 
     const handleScreenShareStartedRemote = ({ name }: { name: string }) => {
         const peer = peerConnectionRef.current;
