@@ -26,6 +26,7 @@ const Room2: React.FC = () => {
     const [message, setMessage] = useState('');
     const [messages, setMessages] = useState<{ from: string; message: string }[]>([]);
     const [isRemoteVideoEnlarged, setIsRemoteVideoEnlarged] = useState(false);
+    const [showMobileChat, setShowMobileChat] = useState(false);
 
     const localVideoRef = useRef<HTMLVideoElement | null>(null);
     const remoteScreenShareRef = useRef<HTMLVideoElement | null>(null);
@@ -210,14 +211,13 @@ const Room2: React.FC = () => {
         if (localVideoRef.current) {
             const videoRef = localVideoRef.current.srcObject as MediaStream;
             const audioTrack = videoRef.getAudioTracks()[0];
+            console.log(audioTrack)
             if (audioTrack) {
                 audioTrack.enabled = !audioTrack.enabled;
                 setIsAudioOn(audioTrack.enabled);
             }
         }
     };
-
-
 
     const handleScreenShareStartedRemote = ({ name }: { name: string }) => {
         const peer = peerConnectionRef.current;
@@ -272,23 +272,20 @@ const Room2: React.FC = () => {
     }, [roomId, name]);
 
 
-
     useEffect(() => {
-    const pc = createPeerConnection(); // create once
+        const pc = createPeerConnection(); // create once
 
-    const startStream = async () => {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-        setLocalStream(stream);
-        if (localVideoRef.current) localVideoRef.current.srcObject = stream;
+        const startStream = async () => {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            setLocalStream(stream);
+            if (localVideoRef.current) localVideoRef.current.srcObject = stream;
 
-        // ✅ Add tracks only once
-        stream.getTracks().forEach(track => pc.addTrack(track, stream));
-    };
+            // ✅ Add tracks only once
+            stream.getTracks().forEach(track => pc.addTrack(track, stream));
+        };
 
-    startStream();
-}, []);
-
-
+        startStream();
+    }, []);
 
 
     useEffect(() => {
@@ -302,166 +299,219 @@ const Room2: React.FC = () => {
         createPeerConnection();
     }, []);
 
+
     return (
-        <div className=' w-full flex items-center justify-center' >
-            <div className='flex flex-col w-full  lg:flex-row  lg:w-[83vw]   h-auto'>
+        <div className="flex h-screen bg-background text-foreground relative">
+            {/* ================= SHOW CHAT BUTTON ON MOBILE ================= */}
+            <button
+                className="absolute top-2 right-4 z-50 md:hidden bg-orange-500 text-primary-foreground px-4 py-2 rounded-full shadow-lg"
+                onClick={() => setShowMobileChat(!showMobileChat)}
+            >
+                {showMobileChat ? "Hide Chat" : "Show Chat"}
+            </button>
 
-                <div className='w-full  lg:w-full  flex flex-col   p-5 justify-center items-center h-full gap-3'>
-                    <div className='w-full   '>
-                        {localStream && (
-                            <div className="relative lg:w-[60vw] w-full  rounded-xl overflow-hidden bg-zinc-700">
-                                {isRemoteVideoEnlarged ? (
-                                    <>
-                                        <video
-                                            ref={remoteVideoRef}
-                                            autoPlay
-                                            playsInline
-                                            muted
-                                            onClick={() => setIsRemoteVideoEnlarged(!isRemoteVideoEnlarged)}
-                                            className="w-full h-full object-cover rounded-xl cursor-pointer"
-                                        />
-                                        <div className="absolute px-3 py-1 bg-zinc-800 bottom-2 left-2 rounded-md">
-                                            <h2 className="font-bold text-md text-center">{remoteUserName}</h2>
-                                        </div>
+            {/* ================= VIDEO SECTION ================= */}
+            <div
+                className={`flex-1 flex flex-col bg-gradient-to-br from-[#0a0a0a] to-[#1a1a1a] relative p-4 transition-all duration-300
+      ${showMobileChat ? 'opacity-0 pointer-events-none' : 'opacity-100 pointer-events-auto'}
+    `}
+            >
+                {/* Main Video */}
+                <div className="flex-1 flex items-center justify-center relative overflow-hidden rounded-xl shadow-xl w-full">
+                    {localStream && (
+                        <>
+                            {isRemoteVideoEnlarged ? (
+                                <>
+                                    <video
+                                        ref={remoteVideoRef}
+                                        autoPlay
+                                        playsInline
+                                        onClick={() => setIsRemoteVideoEnlarged(!isRemoteVideoEnlarged)}
+                                        className="w-full h-full object-cover cursor-pointer rounded-xl"
+                                    />
+                                    <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/20" />
 
-                                        <div className="absolute bottom-3 right-3 w-[220px] h-[150px] rounded-lg overflow-hidden ">
-                                            <video
-                                                ref={localVideoRef}
-                                                autoPlay
-                                                playsInline
-                                                muted
-                                                className="w-full h-full object-cover"
-                                            />
-                                            <div className="absolute px-2 py-1 bg-zinc-800 bottom-1 left-1 rounded-md text-xs">
-                                                <h2 className="font-semibold text-center">{name}</h2>
-                                            </div>
-                                        </div>
-                                    </>
-                                ) : (
-                                    <>
+                                    <div className="absolute bottom-6 right-6 w-32 h-24 md:w-40 md:h-32 rounded-xl overflow-hidden shadow-2xl  bg-black">
                                         <video
                                             ref={localVideoRef}
                                             autoPlay
                                             playsInline
-                                            muted
-                                            className="w-full h-full object-cover rounded-xl"
+                                            className="w-full h-full object-cover"
                                         />
-                                        <div className="absolute px-3 py-1 bg-zinc-800 bottom-2 left-2 rounded-md">
-                                            <h2 className="font-bold text-md text-center">{name}</h2>
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent flex items-start justify-start p-2 text-xs">
+                                            {name}
                                         </div>
+                                    </div>
+                                </>
+                            ) : (
+                                <>
+                                    <video
+                                        ref={localVideoRef}
+                                        autoPlay
+                                        playsInline
+                                        
+                                        className="w-full h-full object-cover rounded-xl"
+                                    />
+                                    <div className="absolute px-3 py-1 bg-zinc-800 bottom-2 left-2 rounded-md text-sm font-bold">
+                                        {name}
+                                    </div>
 
-                                        {showRemoteStream && (
-                                            <div
-                                                className="absolute bottom-3 right-3 w-[220px] h-[150px] rounded-lg overflow-hidden shadow-lg  cursor-pointer"
-                                                onClick={() => setIsRemoteVideoEnlarged(true)}
-                                            >
-                                                <video
-                                                    ref={remoteVideoRef}
-                                                    autoPlay
-                                                    playsInline
-                                                    muted
-                                                    className="w-full h-full object-cover"
-                                                />
-                                                <div className="absolute px-2 py-1 bg-zinc-800 bottom-1 left-1 rounded-md text-xs">
-                                                    <h2 className="font-semibold text-center">{remoteUserName}</h2>
-                                                </div>
+                                    {showRemoteStream && (
+                                        <div
+                                            className="absolute bottom-6 right-6 w-32 h-24 md:w-40 md:h-32 rounded-xl overflow-hidden shadow-2xl  bg-black cursor-pointer"
+                                            onClick={() => setIsRemoteVideoEnlarged(true)}
+                                        >
+                                            <video
+                                                ref={remoteVideoRef}
+                                                autoPlay
+                                                playsInline
+                                                
+                                                className="w-full h-full object-cover"
+                                            />
+                                            <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent flex items-start justify-start p-2 text-xs">
+                                                {remoteUserName}
                                             </div>
-                                        )}
-                                    </>
-                                )}
-                            </div>
-                        )}
+                                        </div>
+                                    )}
+                                </>
+                            )}
+                        </>
+                    )}
 
-
-                    </div>
-
-                    <div className='flex items-center  justify-center bg-zinc-800 px-3 py-2 rounded-full h-auto gap-3 flex-wrap'>
+                    {/* Video Controls Overlay */}
+                    <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 flex gap-4  backdrop-blur-lg px-6 py-3 rounded-full z-50">
                         {!showRemoteStream ? (
                             <>
                                 {isInitiator && !remoteOffer && (
-                                    <span onClick={sendOffer} className='bg-zinc-700 text-zinc-400 rounded-full p-2'>
-                                        <MdCall size='25' />
-                                    </span>
+                                    <button
+                                        onClick={sendOffer}
+                                        className="p-3 rounded-full bg-orange-500 hover:bg-orange-600"
+                                    >
+                                        <MdCall size={20} />
+                                    </button>
                                 )}
                                 {!isInitiator && remoteOffer && (
-                                    <span onClick={answerCaller} className='bg-zinc-700 text-zinc-400 rounded-full p-2'>
-                                        <MdCallEnd size='25' />
-                                    </span>
+                                    <button
+                                        onClick={answerCaller}
+                                        className="p-3 rounded-full bg-orange-500 hover:bg-orange-600"
+                                    >
+                                        <MdCallEnd size={20} />
+                                    </button>
                                 )}
-                                <span onClick={turnOnAndOffVideo} className='bg-zinc-700 text-zinc-400 rounded-full p-2'>
-                                    {isVideoOn ? <FaVideoSlash size='25' /> : <FaVideo size='25' />}
-                                </span>
-                                <span onClick={turnOnAndOffAudio} className='bg-zinc-700 text-zinc-400 rounded-full p-2'>
-                                    {isAudioOn ? <HiMiniSpeakerXMark size='25' /> : <HiMiniSpeakerWave size='25' />}
-                                </span>
                             </>
                         ) : (
-                            <div className='flex items-center justify-center rounded-full h-auto gap-3 flex-wrap'>
-                                <span className='bg-zinc-700 text-zinc-400 rounded-full p-2'>
-                                    <MdCallEnd onClick={endCall} size='25' />
-                                </span>
-                                <span onClick={turnOnAndOffVideo} className='bg-zinc-700 text-zinc-400 rounded-full p-2'>
-                                    {isVideoOn ? <FaVideoSlash size='25' /> : <FaVideo size='25' />}
-                                </span>
-                                <span onClick={turnOnAndOffAudio} className='bg-zinc-700 text-zinc-400 rounded-full p-2'>
-                                    {isAudioOn ? <HiMiniSpeakerXMark size='25' /> : <HiMiniSpeakerWave size='25' />}
-                                </span>
-                            </div>
+                            <button
+                                onClick={endCall}
+                                className="p-3 rounded-full bg-orange-500 hover:bg-orange-600"
+                            >
+                                <MdCallEnd size={20} />
+                            </button>
                         )}
+
+                        <button
+                            onClick={turnOnAndOffVideo}
+                            className={`p-3 rounded-full ${isVideoOn ? 'bg-orange-500 hover:bg-orange-600' : 'bg-orange-500 hover:bg-orange-600'
+                                }`}
+                        >
+                            {isVideoOn ? <FaVideoSlash size={20} /> : <FaVideo size={20} />}
+                        </button>
+
+                        <button
+                            onClick={turnOnAndOffAudio}
+                            className={`p-3 rounded-full ${isAudioOn ? 'bg-orange-500 hover:bg-orange-600' : 'bg-orange-500 hover:bg-orange-600'
+                                }`}
+                        >
+                            {isAudioOn ? <HiMiniSpeakerXMark size={20} /> : <HiMiniSpeakerWave size={20} />}
+                        </button>
                     </div>
                 </div>
 
-                <div className='  lg:w-full   w-full p-5    space-y-2'>
-                    <div className='bg-zinc-800   rounded-xl h-[79vh] overflow-auto'>
-                        <div className="p-4">
-
-                            {
-                                messages.length == 0 && <div className='text-center w-full flex items-center justify-center  h-[70vh] '>
-                                    <span>
-                                        Chatting is not started yet
-                                    </span>
-                                </div>
-                            }
-
-                            {messages.map((msg, index) => (
-                                msg.from === name ? (
-                                    <div key={index} className="chat chat-end">
-                                        <div className="chat-header">{msg.from}</div>
-                                        <div className="chat-bubble">{msg.message}</div>
-                                    </div>
-                                ) : (
-                                    <div key={index} className="chat chat-start">
-                                        <div className="chat-image avatar"></div>
-                                        <div className="chat-header">{msg.from}</div>
-                                        <div className="chat-bubble">{msg.message}</div>
-                                    </div>
-                                )
-                            ))}
-                        </div>
-                    </div>
-                    <div className='bg-zinc-800 h-auto w-full space-x-2 rounded-xl p-3 flex items-center justify-center'>
-                        <input
-                            onChange={(e) => setMessage(e.target.value)}
-                            value={message}
-                            type="text"
-                            className='input input-sm w-full outline-none focus-none'
-                        />
-                        <span
-                            onClick={() => {
-                                if (message.trim() !== '') {
-                                    socket.emit('send-message', { message, room: roomId, from: name });
-                                    setMessage('');
-                                }
-                            }}
-                            className='bg-zinc-700 p-2.5 rounded-full flex items-center justify-center'
-                        >
-                            <BsSend />
-                        </span>
-                    </div>
+                {/* Caller Info */}
+                <div className="absolute top-6 left-6 flex items-center gap-3 bg-orange-400/80 backdrop-blur-xl px-4 py-2 rounded-full">
+                    <div className="w-3 h-3 bg-orange-500 rounded-full animate-pulse" />
+                    <span className="text-sm font-medium">{remoteUserName}</span>
+                    <span className="text-xs text-muted-foreground">12:34</span>
                 </div>
             </div>
 
+            {/* ================= CHAT SECTION ================= */}
+            <div
+                className={`fixed top-0 right-0 h-full w-full max-w-md  md:relative md:w-96 bg-card border-l border-zinc-700 transition-transform duration-300 z-40
+      ${showMobileChat ? 'translate-x-0' : 'translate-x-full md:translate-x-0'}
+    `}
+            >
+                {/* Chat Header */}
+                <div className="px-6 py-4 border-zinc-700 border-b  flex items-center justify-between">
+                    <h2 className="text-lg font-semibold">Chat</h2>
+                    <button
+                        className="md:hidden text-sm font-medium text-primary"
+                        onClick={() => setShowMobileChat(false)}
+                    >
+                        Close
+                    </button>
+                </div>
+
+                {/* Messages Area */}
+                <div className="flex-1 h-[84vh] overflow-y-auto px-4 py-4 space-y-4">
+                    {messages.length === 0 && (
+                        <div className="text-center w-full flex items-center justify-center h-[80vh]  text-muted-foreground">
+                            Chatting is not started yet
+                        </div>
+                    )}
+
+                    {messages.map((msg, index) =>
+                        msg.from === name ? (
+                            <div key={index} className="flex justify-end">
+                                <div className="max-w-xs px-4 py-2 rounded-2xl shadow-sm bg-orange-500 text-primary-foreground rounded-br-none">
+                                    {msg.message}
+                                </div>
+                            </div>
+                        ) : (
+                            <div key={index} className="flex justify-start">
+                                <div className="max-w-xs px-4 py-2 rounded-2xl shadow-sm bg-zinc-700 text-foreground rounded-bl-none">
+                                    {msg.message}
+                                </div>
+                            </div>
+                        )
+                    )}
+                </div>
+
+                {/* Input Area */}
+                <form
+                    onSubmit={
+                        (e) => {
+
+                            e.preventDefault();
+                            if (message.trim() !== '') {
+                                socket.emit('send-message', { message, room: roomId, from: name })
+                                setMessage('')
+                            }
+                        }
+                    }
+                    className="px-4 py-4 border-t border-zinc-700 flex gap-2">
+                    <input
+                        type="text"
+                        placeholder="Type a message..."
+                        value={message}
+                        onChange={(e) => setMessage(e.target.value)}
+                        className="flex-1 px-4 py-2 bg-input border border-zinc-700 rounded-full text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-orange-500 focus:border-transparent transition-all"
+                    />
+                    <button
+                        onClick={() => {
+                            if (message.trim() !== '') {
+                                socket.emit('send-message', { message, room: roomId, from: name })
+                                setMessage('')
+                            }
+                        }}
+                        className="p-3 rounded-full bg-orange-500 hover:bg-orange-600 text-primary-foreground flex items-center justify-center"
+                    >
+                        <BsSend />
+                    </button>
+                </form>
+            </div>
         </div>
+
+
     );
 };
 

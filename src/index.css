@@ -2,3 +2,63 @@
 @plugin "daisyui" {
   themes: all;
 }
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.6s ease-out;
+}
+
+
+/* Grid pattern */
+.bg-grid {
+  background-color: #1a1a1c; /* zinc-800 */
+  background-image:
+    linear-gradient(rgba(255,255,255,0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.08) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+/* Fade toward center */
+.bg-grid-fade {
+  background: radial-gradient(
+    circle at center,
+    rgba(39,39,42,1) 30%,      /* zinc-800 */
+    rgba(39,39,42,0.85) 55%,
+    rgba(39,39,42,0.5) 70%,
+    rgba(39,39,42,0.1) 85%,
+    transparent 100%
+  );
+}
+
+
+/* globals.css */
+@keyframes fall {
+  0% {
+    transform: translateY(0) translateX(0) rotate(0deg);
+    opacity: 0.8;
+  }
+  50% {
+    transform: translateY(50vh) translateX(10px) rotate(45deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(110vh) translateX(-10px) rotate(90deg);
+    opacity: 0;
+  }
+}
+
+.animate-fall {
+  animation-name: fall;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}

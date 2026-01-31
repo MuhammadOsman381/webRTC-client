@@ -2,6 +2,7 @@ import { useState } from 'react';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
+import GridBackground from '../components/GridBackground';
 
 const Home = () => {
     const [name, setName] = useState('');
@@ -26,9 +27,12 @@ const Home = () => {
     return (
         <div className="flex flex-col items-center justify-center min-h-screen gap-4 p-4">
 
+      <GridBackground/>
+
+
             {!isJoining ? (
-                <div className='flex flex-col shadow bg-zinc-800 space-y-3 items-center justify-center rounded-xl  p-5' >
-                    <h1 className="text-xl font-bold">Welcome to the Meeting App</h1>
+                <div className='flex flex-col  bg-zinc-900  space-y-3 items-center justify-center rounded-xl  p-5' >
+                    <h1 className="text-xl font-bold">Welcome to the Connectly</h1>
                     <input
                         className="input"
                         placeholder="Enter your name"
