@@ -8,12 +8,4 @@ console.log(path.resolve(__dirname, 'cert/key.pem'))
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
-  server: {
-    https: {
-      key: fs.readFileSync(path.resolve(__dirname, 'ssl/key.pem')),
-      cert: fs.readFileSync(path.resolve(__dirname, 'ssl/cert.pem')),
-    },
-    host: true, 
-    port: 5173,
-  },
 });
